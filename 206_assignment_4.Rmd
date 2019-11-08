@@ -5,8 +5,8 @@ date: "11/6/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r}
@@ -27,5 +27,72 @@ lobster_data <- read_csv("lobster_abundance_sbc_lter.csv",
 lobster_tidy <- lobster_data %>% 
   uncount(count)
 
+lobster_mpa <- lobster_tidy %>% 
+  mutate(mpa= ifelse(site %in% c("IVEE", "NAPL"), "MPA", "non-MPA" ))
+
 ```
 
+```{r}
+# Changes in annual lobster abundance by site
+
+#get annual count of lobsters for each site
+lobster_abundance <- lobster_tidy %>% 
+  count(site, year) %>% 
+  mutate(mpa= ifelse(site %in% c("IVEE", "NAPL"), "MPA", "non-MPA" ))
+
+# graph lobster abundance
+
+ggplot(lobster_abundance, 
+       aes(x = year, 
+           y = n, 
+           group = site, 
+           color = mpa, 
+           size = mpa))+
+  geom_line()+
+  scale_color_manual(values = c("gray", "cyan4"))+
+  scale_size_manual(values = c(0.5, 1.2))+
+  theme_minimal()+
+  labs(x= "Year", y = "Lobsters observed", title = "California Spiny Lobster abundance in Santa Barbara Channel (2012-2018")
+  
+  
+```
+
+
+```{r}
+# Mean Lobster size at MPA vs. non-MPA
+
+lobster_size_mpa <- lobster_mpa %>% 
+  group_by(mpa, year) %>% 
+  summarise(mean_size_mm = mean(size_mm, na.rm = TRUE),
+            sd_size = sd(size_mm, na.rm = TRUE),
+            lobster_number = n())
+
+# t-test for 2012 lobster size MPA vs non-MPA
+
+mpa_2012_sample <- lobster_mpa %>% 
+  filter(mpa == "MPA", year == "2012") %>% 
+  pull(size_mm)
+
+non_mpa_2012_sample <- lobster_mpa %>% 
+  filter(mpa == "non-MPA", year == "2012") %>% 
+  pull(size_mm)
+
+mpa_2012_ttest <- t.test(mpa_2012_sample, non_mpa_2012_sample)
+
+mpa_2012_ttest
+
+# t-test for 2018 lobster size MPA vs non-MPA
+
+mpa_2018_sample <- lobster_mpa %>% 
+  filter(mpa == "MPA", year == "2018") %>% 
+  pull(size_mm)
+
+non_mpa_2018_sample <- lobster_mpa %>% 
+  filter(mpa == "non-MPA", year == "2018") %>% 
+  pull(size_mm)
+
+mpa_2018_ttest <- t.test(mpa_2018_sample, non_mpa_2018_sample)
+
+mpa_2018_ttest
+```
+Mean lobster size in Marine Protected Areas ( mean, sd) and non-Marine Protected Areas (mean, sd) in 2012 differed significantly (p-value =`r mpa_2012_ttest$p.value`)
